@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>唐渝祚 ❤ 王惠颖</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; overflow:hidden; }
+  body {
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC","MiSans",sans-serif;
+    background:linear-gradient(160deg,#ffe9f1 0%,#ffd6e5 50%,#ffc9dd 100%);
+    color:#c74a6e;
+    -webkit-user-select:none; user-select:none;
+  }
+  #app { position:fixed; inset:0; display:flex; flex-direction:column; }
+
+  /* ---------- 终端启动动画 ---------- */
+  #boot {
+    position:fixed; inset:0; background:#0a0a0f; z-index:50;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:22px; font-family:"Cascadia Code",Consolas,Menlo,monospace;
+  }
+  #bootCode { color:#ff5c8a; font-size:13px; line-height:1.75; white-space:pre-wrap; word-break:break-all; text-shadow:0 0 6px rgba(255,92,138,.45); }
+  #bootCode .cm { color:#8a4a5e; }
+  #cursor { display:inline-block; width:8px; height:15px; background:#ff5c8a; vertical-align:-2px; animation:blink .8s step-end infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+
+  /* ---------- 进度条 ---------- */
+  #load {
+    position:fixed; inset:0; background:#0a0a0f; z-index:49;
+    display:none; flex-direction:column; align-items:center; justify-content:center; gap:26px;
+    font-family:Consolas,Menlo,monospace;
+  }
+  #loadTitle { color:#ff5c8a; font-size:15px; letter-spacing:2px; text-shadow:0 0 8px rgba(255,92,138,.6); }
+  #barWrap { width:min(78vw,340px); height:14px; border-radius:7px; background:#26262e; overflow:hidden; box-shadow:inset 0 1px 4px rgba(0,0,0,.7); }
+  #bar { width:0%; height:100%; border-radius:7px; background:linear-gradient(90deg,#ff2d6f,#ff7aa2); box-shadow:0 0 10px rgba(255,45,111,.8); transition:width .1s linear; }
+  #pct { color:#ff9eb8; font-size:13px; }
+
+  /* ---------- 主界面 ---------- */
+  #main { display:none; flex-direction:column; height:100dvh; padding:calc(env(safe-area-inset-top) + 10px) 0 calc(env(safe-area-inset-bottom) + 10px); }
+
+  #topBar { position:relative; height:52px; display:flex; align-items:center; justify-content:center; flex:none; }
+  #pageTitle { font-size:21px; letter-spacing:3px; color:#c74a6e; opacity:0; transition:opacity .6s; }
+
+  #stage { flex:1; position:relative; overflow:hidden; }
+  .page {
+    position:absolute; inset:0; display:none; flex-direction:column; align-items:center;
+    padding:6px 18px calc(env(safe-area-inset-bottom) + 18px); overflow-y:auto; -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+  }
+  .page.on { display:flex; animation:pageIn .7s ease both; }
+  @keyframes pageIn { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:none; } }
+
+  #welcome { flex:1; display:flex; align-items:center; justify-content:center; text-align:center; }
+  #welcome p { font-size:26px; line-height:1.8; letter-spacing:2px; color:#c74a6e; animation:fadeIn 1.6s ease both; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+  /* 名字页 */
+  .nameWrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:26px; width:100%; }
+  .bigName {
+    position:relative; font-family:"STXingkai","华文行楷","Xingkai SC","Kaiti SC","KaiTi","STKaiti","楷体",serif;
+    font-weight:normal; font-size:56px; letter-spacing:6px; color:#e0447c;
+    opacity:0; animation:nameIn 2.2s ease .2s both;
+    text-shadow:0 2px 14px rgba(224,68,124,.28);
+  }
+  @keyframes nameIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+  .starSvg { position:absolute; width:30px; height:30px; animation:twinkle 1.8s ease-in-out infinite; }
+  .starSvg.l { left:-46px; top:-8px; }
+  .starSvg.r { right:-46px; bottom:-4px; animation-delay:.9s; }
+  @keyframes twinkle { 0%,100% { opacity:.25; transform:scale(.8) rotate(0deg); } 50% { opacity:1; transform:scale(1.15) rotate(18deg); } }
+
+  /* 照片 */
+  .photoFlow { width:100%; display:flex; flex-wrap:wrap; justify-content:center; gap:14px; padding:8px 0 16px; }
+  .card {
+    width:var(--cardw, min(44vw,180px)); background:#fff; border-radius:14px; padding:7px 7px 8px;
+    box-shadow:0 6px 18px rgba(199,74,110,.22);
+    animation:floatY 4s ease-in-out infinite, fadeIn .9s ease both;
+    transition:transform .2s;
+  }
+  .card:nth-child(odd) { transform:rotate(-2.5deg); }
+  .card:nth-child(even) { transform:rotate(2.2deg); }
+  .card:active { transform:scale(.96); }
+  .card img { width:100%; border-radius:9px; display:block; aspect-ratio:3/4; object-fit:cover; background:#ffe9f1; }
+  .card .cap { text-align:center; font-size:17px; padding-top:6px; color:#d6487f; letter-spacing:2px; }
+  .card .cap:empty { display:none; }
+  @keyframes floatY { 0%,100% { translate:0 0; } 50% { translate:0 -7px; } }
+
+  /* 告白页 */
+  .confessWrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:30px; width:100%; }
+  .heartBox { position:relative; display:flex; align-items:center; justify-content:center; min-height:150px; width:100%; }
+  .heartSvg { position:absolute; left:50%; top:50%; margin:-110px 0 0 -120px; width:240px; height:220px; opacity:.95; animation:beat 1.3s ease-in-out infinite; }
+  @keyframes beat { 0%,100% { transform:scale(1); } 25% { transform:scale(1.08); } 40% { transform:scale(.97); } 55% { transform:scale(1.06); } }
+  .confessText {
+    position:relative; z-index:2; font-family:"STXingkai","华文行楷","Xingkai SC","Kaiti SC","KaiTi","STKaiti","楷体",serif;
+    font-weight:normal; font-size:29px; letter-spacing:2px; color:#fff; text-shadow:0 1px 6px rgba(160,20,60,.55);
+  }
+
+  /* 视频页 */
+  .videoWrap { flex:1; width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  #storyVideo { width:min(92vw,420px); border-radius:16px; background:#000; box-shadow:0 8px 24px rgba(199,74,110,.3); }
+  .videoTip { font-size:13px; color:#d8789a; }
+
+  /* 情书页 */
+  .letter { width:min(92vw,420px); background:rgba(255,255,255,.9); border-radius:18px; padding:24px 22px; margin:8px auto 20px; box-shadow:0 8px 26px rgba(199,74,110,.2); }
+  .letter h2 { font-family:"Kaiti SC","STKaiti","KaiTi","楷体",serif; font-weight:normal; font-size:24px; text-align:center; color:#e0447c; margin-bottom:16px; letter-spacing:2px; }
+  .letter .body { font-family:"Kaiti SC","STKaiti","KaiTi","楷体",serif; font-size:17px; line-height:2; color:#7a5566; white-space:pre-wrap; }
+  .letter .sign { text-align:right; margin-top:18px; font-family:"Kaiti SC","STKaiti","KaiTi","楷体",serif; font-size:17px; color:#e0447c; }
+
+  /* 底部按钮 */
+  #btnArea { flex:none; display:flex; justify-content:center; padding:6px 0 4px; }
+  #nextBtn {
+    border:none; outline:none; min-width:150px; padding:13px 34px; border-radius:30px;
+    font-size:18px; letter-spacing:4px; color:#fff; cursor:pointer;
+    background:linear-gradient(135deg,#ff5c8a,#ff2d6f);
+    box-shadow:0 6px 18px rgba(255,45,111,.42);
+    animation:pulse 2s ease-in-out infinite;
+  }
+  #nextBtn:active { transform:scale(.94); }
+  @keyframes pulse { 0%,100% { box-shadow:0 6px 18px rgba(255,45,111,.42); } 50% { box-shadow:0 6px 26px rgba(255,45,111,.68); } }
+
+  /* 图片查看器 */
+  #viewer { position:fixed; inset:0; z-index:80; background:rgba(20,10,14,.92); display:none; align-items:center; justify-content:center; }
+  #viewer img { max-width:96vw; max-height:88dvh; border-radius:10px; }
+
+  .heartBg { position:fixed; z-index:1; pointer-events:none; opacity:.5; animation:rise 7s linear infinite; }
+  .bgHeart { display:block; width:100%; height:100%; }
+  @keyframes rise { from { transform:translateY(110dvh) scale(.7); opacity:.5; } to { transform:translateY(-15dvh) scale(1.1); opacity:0; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- 终端编程动画 -->
+  <div id="boot"><div id="bootCode"><span id="typed"></span><span id="cursor"></span></div></div>
+  <!-- 进度条 -->
+  <div id="load">
+    <div id="loadTitle">爱的程序编译中...</div>
+    <div id="barWrap"><div id="bar"></div></div>
+    <div id="pct">0%</div>
+  </div>
+  <!-- 主界面 -->
+  <div id="main">
+    <div id="topBar"><div id="pageTitle"></div></div>
+    <div id="stage"></div>
+    <div id="btnArea"><button id="nextBtn">点击我</button></div>
+  </div>
+</div>
+<div id="viewer"><img id="viewerImg" alt=""></div>
+
+<script>
+/* ================= 数据 ================= */
+var HERO = "唐渝祚", GIRL = "王惠颖";
+var PAGES = [
+  { title:"", type:"welcome" },
+  { title:"她的名字", type:"name", name:GIRL,
+    photos:["photo_1790925510849.jpg","photo_1790926417169.jpg"] },
+  { title:"她的模样", type:"photos", photos:[
+      {f:"photo_1790926575939.jpg",cap:"你"},{f:"photo_1790926584811.jpg",cap:"的"},
+      {f:"photo_1790926594659.jpg",cap:"绝"},{f:"photo_1790926601480.jpg",cap:"美"},
+      {f:"photo_1790926628605.jpg",cap:"容"},{f:"photo_1790926637739.jpg",cap:"颜"}] },
+  { title:"他的名字", type:"name", name:HERO,
+    photos:["photo_1790927175644.jpg","photo_1790927184346.jpg"] },
+  { title:"他的模样", type:"photos", photos:[
+      {f:"photo_1790927233239.jpg"},{f:"photo_1790927241273.jpg"},{f:"photo_1790927250505.jpg"}] },
+  { title:"爱的告白", type:"confess",
+    photos:["photo_1790927384176.jpg","photo_1790927394012.jpg"] },
+  { title:"我们的合照", type:"photos", photos:[
+      {f:"photo_1790927451109.jpg"},{f:"photo_1790927459153.jpg"},{f:"photo_1790927468476.jpg"},
+      {f:"photo_1790927488440.jpg"},{f:"photo_1790927497340.jpg"},{f:"photo_1790927507022.jpg"},
+      {f:"photo_1790927516669.jpg"},{f:"photo_1790927526138.jpg"}] },
+  { title:"我们的影像", type:"video" },
+  { title:"写给你的情书", type:"letter" }
+];
+var LETTER = {
+  title:"致我最爱的颖颖",
+  sign:HERO + " 永远爱 " + GIRL + " ❤",
+  body:"从遇见你的那一刻起，\n我的世界便有了色彩。\n\n你的笑容是我每天最期待的风景，\n你的声音是我耳边最动听的旋律。\n\n愿往后余生，\n风雪是你，平淡是你，\n清贫是你，荣华是你，\n心底温柔是你，目光所至也是你。"
+};
+var CODE_LINES = [
+  '<span class="cm">// 为你而写的程序</span>',
+  'public class LoveStory {',
+  '  public static void main(String[] args) {',
+  '    String boy  = "' + HERO + '";',
+  '    String girl = "' + GIRL + '";',
+  '    while (true) {',
+  '      boy.miss(girl);',
+  '      boy.love(girl);',
+  '    }',
+  '  }',
+  '}'
+];
+
+/* ================= 五角星 SVG ================= */
+function starSvg(size, color) {
+  var pts = [];
+  for (var i = 0; i < 10; i++) {
+    var r = i % 2 === 0 ? 50 : 21;
+    var a = -Math.PI / 2 + i * Math.PI / 5;
+    pts.push((50 + r * Math.cos(a)).toFixed(1) + "," + (50 + r * Math.sin(a)).toFixed(1));
+  }
+  return '<svg class="starSvg" viewBox="0 0 100 100"><polygon points="' + pts.join(" ") +
+         '" fill="' + color + '"/></svg>';
+}
+function heartSvg(color, cls) {
+  return '<svg class="' + cls + '" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><path fill="' + color +
+    '" d="M50 88 C20 65 6 48 6 32 C6 18 17 8 30 8 C39 8 46 13 50 20 C54 13 61 8 70 8 C83 8 94 18 94 32 C94 48 80 65 50 88 Z"/></svg>';
+}
+
+/* ================= 启动：打字 → 进度条 ================= */
+var typedEl = document.getElementById("typed");
+(function typeCode(li, ci) {
+  if (li >= CODE_LINES.length) { setTimeout(startLoad, 500); return; }
+  var line = CODE_LINES[li];
+  if (ci === 0 && li > 0) typedEl.innerHTML += "\n";
+  if (ci < line.length) {
+    typedEl.innerHTML += line.charAt(ci);
+    setTimeout(function () { typeCode(li, ci + 1); }, 18);
+  } else {
+    setTimeout(function () { typeCode(li + 1, 0); }, 90);
+  }
+})(0, 0);
+
+function startLoad() {
+  document.getElementById("boot").style.display = "none";
+  var load = document.getElementById("load");
+  load.style.display = "flex";
+  var bar = document.getElementById("bar"), pct = document.getElementById("pct");
+  var t0 = Date.now(), DUR = 5000, done = false;
+  var iv = setInterval(function () {
+    var p = Math.min(100, (Date.now() - t0) / DUR * 100);
+    bar.style.width = p + "%";
+    pct.textContent = Math.floor(p) + "%";
+    if (p >= 100) { clearInterval(iv); if (!done) { done = true; setTimeout(showMain, 400); } }
+  }, 50);
+  setTimeout(function () { if (!done) { done = true; showMain(); } }, 6200);  /* 兜底 */
+}
+
+/* ================= 主界面 ================= */
+var bgm = new Audio("bgm.mp3");
+bgm.loop = true; bgm.preload = "auto";
+var stage = document.getElementById("stage");
+var titleEl = document.getElementById("pageTitle");
+var btn = document.getElementById("nextBtn");
+var videoEl = null;
+var cur = -1;
+
+function tryPlayBgm() { bgm.play().catch(function(){}); }
+/* 微信内自动播放修复 */
+function weixinAutoPlay() {
+  if (window.WeixinJSBridge) {
+    WeixinJSBridge.invoke("getNetworkType", {}, tryPlayBgm);
+  } else if (document.addEventListener) {
+    document.addEventListener("WeixinJSBridgeReady", weixinAutoPlay, false);
+  }
+}
+weixinAutoPlay();
+
+function showMain() {
+  document.getElementById("load").style.display = "none";
+  document.getElementById("main").style.display = "flex";
+  goto(0);
+  spawnHearts();
+}
+
+function goto(i) {
+  if (cur === 7 && videoEl) { videoEl.pause(); }
+  if (cur === 7 && i !== 7) tryPlayBgm();      /* 离开视频页恢复音乐 */
+  cur = i;
+  stage.innerHTML = "";
+  var p = PAGES[i];
+  titleEl.textContent = p.title || "";
+  titleEl.style.opacity = p.title ? 1 : 0;
+  btn.textContent = (i === PAGES.length - 1) ? "再看一遍" : "点击我";
+
+  var page = document.createElement("div");    /* 可滚动页面容器 */
+  page.className = "page on";
+  var flow = null;
+
+  if (p.type === "welcome") {
+    var w = document.createElement("div");
+    w.id = "welcome";
+    w.innerHTML = "<p>点击下方按钮<br>开启属于我们的故事</p>";
+    page.appendChild(w);
+  } else if (p.type === "name") {
+    var d = document.createElement("div");
+    d.className = "nameWrap";
+    var n = document.createElement("div");
+    n.className = "bigName";
+    n.textContent = p.name;
+    n.insertAdjacentHTML("beforeend", starSvg(30, "#ffb347").replace('class="starSvg"', 'class="starSvg l"'));
+    n.insertAdjacentHTML("beforeend", starSvg(24, "#ff5c8a").replace('class="starSvg"', 'class="starSvg r"'));
+    d.appendChild(n);
+    if (p.photos && p.photos.length) flow = makeFlow(p.photos.map(function(f){return {f:f};}), 0);
+    if (flow) d.appendChild(flow);
+    page.appendChild(d);
+  } else if (p.type === "confess") {
+    var c = document.createElement("div");
+    c.className = "confessWrap";
+    var hb = document.createElement("div");
+    hb.className = "heartBox";
+    hb.innerHTML = heartSvg("#ff3d6e", "heartSvg");
+    var t = document.createElement("div");
+    t.className = "confessText";
+    t.textContent = HERO + "爱" + GIRL;
+    hb.appendChild(t);
+    c.appendChild(hb);
+    if (p.photos.length) flow = makeFlow(p.photos.map(function(f){return {f:f};}), 0);
+    if (flow) c.appendChild(flow);
+    page.appendChild(c);
+  } else if (p.type === "photos") {
+    var ph = document.createElement("div");
+    ph.style.cssText = "flex:1;display:flex;flex-direction:column;justify-content:center;width:100%;";
+    flow = makeFlow(p.photos, 120);
+    ph.appendChild(flow);
+    page.appendChild(ph);
+  } else if (p.type === "video") {
+    var vw = document.createElement("div");
+    vw.className = "videoWrap";
+    videoEl = document.createElement("video");
+    videoEl.id = "storyVideo";
+    videoEl.src = "story.mp4";
+    videoEl.controls = true;
+    videoEl.setAttribute("playsinline", "");
+    videoEl.setAttribute("webkit-playsinline", "");
+    videoEl.setAttribute("x5-playsinline", "");
+    videoEl.preload = "auto";
+    videoEl.addEventListener("loadeddata", function () { videoEl.play().catch(function(){}); });
+    vw.appendChild(videoEl);
+    var tip = document.createElement("div");
+    tip.className = "videoTip";
+    tip.textContent = "音乐已暂停，请欣赏我们的故事";
+    vw.appendChild(tip);
+    page.appendChild(vw);
+    bgm.pause();                                  /* 进入视频页暂停音乐 */
+    videoEl.play().catch(function(){});
+  } else if (p.type === "letter") {
+    var l = document.createElement("div");
+    l.className = "letter";
+    l.innerHTML = "<h2></h2><div class='body'></div><div class='sign'></div>";
+    l.querySelector("h2").textContent = LETTER.title;
+    l.querySelector(".body").textContent = LETTER.body;
+    l.querySelector(".sign").textContent = LETTER.sign;
+    page.appendChild(l);
+  }
+
+  stage.appendChild(page);
+  if (flow) fitCards(flow, p.type === "photos" ? p.photos.length : flow.children.length);
+}
+
+/* 自动缩放卡片，让所有照片在一屏内完整显示 */
+function fitCards(flow, count) {
+  var perRow = count <= 6 ? 2 : 3;
+  var rows = Math.ceil(count / perRow);
+  var availH = stage.clientHeight - 34;
+  var availW = stage.clientWidth - 40;
+  var gap = 14, chrome = 46;                    /* 卡片内边距+文字占高 */
+  var h = (availH - gap * (rows - 1)) / rows - chrome;
+  var w1 = h * 0.75;                            /* 竖版 3:4 */
+  var w2 = (availW - gap * (perRow - 1)) / perRow;
+  var w = Math.floor(Math.max(60, Math.min(w1, w2, 180)));
+  flow.style.setProperty("--cardw", w + "px");
+}
+
+function makeFlow(photos, delayBase) {
+  var flow = document.createElement("div");
+  flow.className = "photoFlow";
+  photos.forEach(function (p, i) {
+    var card = document.createElement("div");
+    card.className = "card";
+    card.style.animationDelay = (delayBase + i * 120) + "ms," + (delayBase + i * 120) + "ms";
+    var img = document.createElement("img");
+    img.src = "photos/" + p.f;
+    img.loading = "lazy";
+    img.alt = "";
+    card.appendChild(img);
+    if (p.cap) {
+      var cap = document.createElement("div");
+      cap.className = "cap";
+      cap.textContent = p.cap;
+      card.appendChild(cap);
+    }
+    card.addEventListener("click", function () {
+      var v = document.getElementById("viewer");
+      document.getElementById("viewerImg").src = "photos/" + p.f;
+      v.style.display = "flex";
+    });
+    flow.appendChild(card);
+  });
+  return flow;
+}
+
+document.getElementById("viewer").addEventListener("click", function () {
+  this.style.display = "none";
+});
+
+btn.addEventListener("click", function () {
+  tryPlayBgm();                                   /* 首次点击触发播放 */
+  var n = cur + 1;
+  goto(n > PAGES.length - 1 ? 0 : n);
+});
+
+/* 漂浮小爱心 */
+function spawnHearts() {
+  for (var i = 0; i < 8; i++) {
+    (function (i) {
+      setTimeout(function () {
+        var h = document.createElement("div");
+        h.className = "heartBg";
+        var s = 16 + Math.random() * 22;
+        h.style.left = (4 + Math.random() * 90) + "vw";
+        h.style.width = s + "px";
+        h.style.height = s + "px";
+        h.innerHTML = heartSvg("#ff9eb8", "bgHeart");
+        h.style.animationDelay = (-Math.random() * 7) + "s";
+        document.body.appendChild(h);
+      }, i * 600);
+    })(i);
+  }
+}
+</script>
+</body>
+</html>
